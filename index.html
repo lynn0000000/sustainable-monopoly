@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手機星球：永續大富翁</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#222536;--border:#2e3247;
+  --primary:#6366f1;--gold:#f59e0b;--green:#10b981;--red:#ef4444;--blue:#38bdf8;--purple:#a78bfa;
+  --text:#e2e8f0;--muted:#64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);padding:14px;}
+.app{max-width:1400px;margin:0 auto;}
+h1{text-align:center;font-size:22px;color:#818cf8;margin-bottom:4px;}
+.subtitle{text-align:center;font-size:12px;color:var(--muted);margin-bottom:14px;}
+
+/* 狀態列 */
+.statusbar{display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 16px;margin-bottom:12px;flex-wrap:wrap;font-size:12px;font-weight:500;align-items:center;}
+.sb-sep{width:1px;background:var(--border);height:16px;}
+
+/* 主版面：版圖左，玩家右 */
+.main-layout{display:grid;grid-template-columns:1fr 380px;gap:14px;align-items:start;}
+
+/* 版圖 */
+.board-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px;overflow-x:auto;}
+.board{display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(8,100px);gap:3px;min-width:700px;}
+.cell{border:1.5px solid var(--border);border-radius:8px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;position:relative;overflow:hidden;transition:box-shadow .2s;}
+.cell.active{box-shadow:0 0 0 3px var(--gold);}
+.cell-icon{font-size:24px;line-height:1;}
+.cell-name{font-size:12px;font-weight:600;line-height:1.3;color:#ffffff;}
+.cell-tag{font-size:10px;color:rgba(255,255,255,0.6);line-height:1.3;}
+.cell-values{font-size:10px;line-height:1.4;color:rgba(255,255,255,0.7);}
+/* 生命週期顏色 */
+.lc1{background:#14532d;border-color:#166534;}
+.lc2{background:#1e3a8a;border-color:#1e40af;}
+.lc3{background:#7c2d12;border-color:#92400e;}
+.lc4{background:#4c1d95;border-color:#5b21b6;}
+.lc5{background:#7f1d1d;border-color:#991b1b;}
+.corner{background:#312e81;border-color:#4f46e5;}
+.chance-cell{background:#075985;border-color:#0369a1;}
+.fate-cell{background:#450a0a;border-color:#7f1d1d;}
+/* 棋子 */
+.token{position:absolute;width:22px;height:22px;border-radius:50%;border:2px solid var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;color:white;bottom:4px;}
+
+/* 右欄 */
+.right-col{display:flex;flex-direction:column;gap:10px;}
+
+/* 玩家卡 */
+.pcard{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:12px;transition:all .2s;}
+.pcard.active{border-color:var(--primary);box-shadow:0 0 0 2px rgba(99,102,241,.2);}
+.pcard.winner{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,158,11,.3);}
+.pname{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+
+/* 목표 진행 */
+.goals{display:flex;flex-direction:column;gap:8px;}
+.goal-row{background:var(--surface2);border-radius:8px;padding:8px 10px;}
+.goal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:12px;}
+.goal-label{font-weight:600;}
+.goal-val{font-weight:700;font-size:14px;}
+.goal-target{font-size:10px;color:var(--muted);}
+.progress-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;transition:width .5s;}
+.goal-done{display:inline-block;background:#052e16;color:#34d399;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;}
+
+/* 行動區 */
+.action-panel{background:var(--surface);border:1.5px solid var(--primary);border-radius:12px;padding:14px;}
+.ap-title{font-size:14px;font-weight:700;color:#818cf8;margin-bottom:4px;}
+.ap-sub{font-size:11px;color:var(--muted);margin-bottom:12px;}
+.dice-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.dice-btn{background:var(--primary);color:white;border:none;padding:9px 22px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;}
+.dice-btn:hover:not(:disabled){filter:brightness(1.15);}
+.dice-btn:disabled{opacity:.4;cursor:not-allowed;}
+.dice-val{font-size:28px;font-weight:700;color:var(--gold);}
+.adjust-row{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:10px;flex-wrap:wrap;}
+.adj-btn{background:var(--surface2);color:var(--text);border:1.5px solid var(--border);width:32px;height:32px;border-radius:7px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.adj-btn:hover:not(:disabled){border-color:var(--primary);color:#818cf8;}
+.adj-btn:disabled{opacity:.3;cursor:not-allowed;}
+.step-num{font-size:20px;font-weight:700;min-width:28px;text-align:center;}
+.cost-note{font-size:10px;color:var(--gold);flex:1;}
+.confirm-btn{background:var(--green);color:white;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;}
+.confirm-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* 預覽格子效果 */
+.preview-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;margin-top:8px;line-height:1.7;}
+.preview-box b{color:var(--text);}
+
+/* 事件區 */
+.card-zone{display:none;margin-top:10px;border-radius:10px;padding:12px;border:1.5px solid;}
+.card-zone.good{background:#021f0f;border-color:#065f46;color:#34d399;}
+.card-zone.bad{background:#1a0505;border-color:#7f1d1d;color:#fca5a5;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:5px;}
+.card-desc{font-size:12px;opacity:.85;margin-bottom:10px;line-height:1.6;}
+.card-ok{background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:'Noto Sans TC',sans-serif;}
+
+/* 排名 */
+.rank-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;}
+.rank-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;}
+.rank-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;margin-bottom:3px;border:1px solid var(--border);font-size:12px;}
+.rank-row.lead{background:#1c1700;border-color:#92400e;}
+
+/* 導覽 */
+.guide-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.guide-hdr{padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;color:#818cf8;}
+.guide-hdr:hover{background:var(--surface2);}
+.guide-body{display:none;padding:0 14px 12px;border-top:1px solid var(--border);}
+.guide-body.open{display:block;}
+.guide-section{margin-top:10px;}
+.guide-section h4{font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.guide-row{display:flex;gap:6px;font-size:11px;color:var(--muted);margin-bottom:3px;line-height:1.5;}
+
+/* Log */
+.log-box{background:#080b12;border:1px solid var(--border);border-radius:8px;padding:8px;font-family:monospace;font-size:11px;max-height:90px;overflow-y:auto;}
+.log-entry{padding:1px 0;border-bottom:1px solid #0f1117;line-height:1.5;}
+.log-entry.earn{color:var(--green);}
+.log-entry.bad{color:var(--red);}
+.log-entry.world{color:var(--gold);font-weight:bold;}
+.log-entry.info{color:var(--blue);}
+.log-entry.win{color:var(--gold);font-weight:bold;font-size:13px;}
+
+/* 結算 */
+.end-screen{display:none;text-align:center;padding:40px 20px;}
+.end-screen h2{font-size:28px;font-weight:700;color:var(--gold);margin-bottom:20px;}
+.end-box{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:24px;display:inline-block;min-width:320px;}
+.end-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px;font-size:13px;}
+.reset-btn{margin-top:16px;background:var(--primary);color:white;border:none;padding:10px 28px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;}
+
+/* 稽查 */
+.jail-notice{display:none;background:#1a0500;border:1.5px solid #92400e;border-radius:8px;padding:8px 12px;font-size:12px;color:#fb923c;margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>📱 手機星球：永續大富翁</h1>
+  <p class="subtitle">同時達到三個門檻的玩家獲勝：💰 利潤 $60 ｜ ⚙️ 功能 15分 ｜ 🌍 地球負擔不超過 10</p>
+
+  <div class="statusbar" id="statusbar">
+    <span>⏳ <span id="sb-round">第 1 圈</span></span>
+    <div class="sb-sep"></div>
+    <span>👉 <span id="sb-turn">玩家 A 的回合</span></span>
+    <div class="sb-sep"></div>
+    <span>📍 <span id="sb-cell">起點</span></span>
+  </div>
+
+  <div class="main-layout" id="mainLayout">
+    <!-- 版圖 -->
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <!-- 右欄 -->
+    <div class="right-col">
+      <!-- 玩家 A -->
+      <div class="pcard" id="pcard_A">
+        <div class="pname">
+          <div class="avatar" style="background:#1e1b4b;color:#818cf8">A</div>
+          玩家 A
+          <span id="ptag_A" style="font-size:10px;color:#818cf8"></span>
+        </div>
+        <div class="goals" id="goals_A"></div>
+      </div>
+      <!-- 玩家 B -->
+      <div class="pcard" id="pcard_B">
+        <div class="pname">
+          <div class="avatar" style="background:#042f1e;color:#10b981">B</div>
+          玩家 B
+          <span id="ptag_B" style="font-size:10px;color:#10b981"></span>
+        </div>
+        <div class="goals" id="goals_B"></div>
+      </div>
+
+      <!-- 行動區 -->
+      <div class="action-panel" id="actionPanel">
+        <div class="ap-title" id="apTitle">玩家 A 的回合</div>
+        <div class="ap-sub">擲骰子（1–4點），花 $5 調整步數（最多 ±2，確認後才扣錢）</div>
+        <div class="dice-row">
+          <button class="dice-btn" id="diceBtn" onclick="rollDice()">🎲 擲骰子</button>
+          <span class="dice-val" id="diceVal"></span>
+        </div>
+        <div class="adjust-row" id="adjustRow" style="display:none">
+          <button class="adj-btn" id="btnMinus" onclick="adjustStep(-1)">−</button>
+          <span class="step-num" id="stepNum">0</span>
+          <button class="adj-btn" id="btnPlus" onclick="adjustStep(1)">＋</button>
+          <span class="cost-note" id="costNote"></span>
+          <button class="confirm-btn" id="confirmBtn" onclick="confirmMove()">確認移動 →</button>
+        </div>
+        <div class="preview-box" id="previewBox" style="display:none"></div>
+        <div class="jail-notice" id="jailNotice"></div>
+        <div class="card-zone" id="cardZone">
+          <div class="card-title" id="cardTitle"></div>
+          <div class="card-desc" id="cardDesc"></div>
+          <button class="card-ok" onclick="confirmCard()">確認</button>
+        </div>
+        <div class="log-box" id="logBox" style="margin-top:10px"></div>
+      </div>
+
+      <!-- 排名 -->
+      <div class="rank-panel">
+        <div class="rank-title">📊 達標進度</div>
+        <div id="rankList"></div>
+      </div>
+
+      <!-- 導覽 -->
+      <div class="guide-panel">
+        <div class="guide-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
+          📖 遊戲規則 <span style="font-size:11px;color:var(--muted)">▼</span>
+        </div>
+        <div class="guide-body">
+          <div class="guide-section">
+            <h4>🏆 勝利條件</h4>
+            <div class="guide-row"><span>•</span><span>同時達到：💰利潤 $60、⚙️功能 15分、🌍地球負擔 ≤10</span></div>
+            <div class="guide-row"><span>•</span><span>三個都達標的玩家立即獲勝</span></div>
+          </div>
+          <div class="guide-section">
+            <h4>🎲 每回合</h4>
+            <div class="guide-row"><span>1.</span><span>擲骰子</span></div>
+            <div class="guide-row"><span>2.</span><span>花 $5 調整步數（±1步，最多2次，確認後才扣）</span></div>
+            <div class="guide-row"><span>3.</span><span>確認移動，格子效果自動生效</span></div>
+          </div>
+          <div class="guide-section">
+            <h4>📊 三個維度</h4>
+            <div class="guide-row"><span>💰</span><span>利潤：累積到 $60 達標（賺錢但通常傷地球）</span></div>
+            <div class="guide-row"><span>⚙️</span><span>功能：累積到 15分 達標（品質好但利潤低）</span></div>
+            <div class="guide-row"><span>🌍</span><span>地球負擔：保持在 10 以下達標（製造一定會產生，差別在多少）</span></div>
+          </div>
+          <div class="guide-section">
+            <h4>⚠️ 特殊規則</h4>
+            <div class="guide-row"><span>•</span><span>地球負擔超過 15 → 進稽查署停 2 回合</span></div>
+            <div class="guide-row"><span>•</span><span>走到角落 → 抽機會或命運卡</span></div>
+            <div class="guide-row"><span>•</span><span>經過起點 → 領 $10</span></div>
+          </div>
+          <div class="guide-section">
+            <h4>🗺️ 格子顏色</h4>
+            <div class="guide-row"><span style="color:#10b981">■</span><span>原料採購</span></div>
+            <div class="guide-row"><span style="color:#3b82f6">■</span><span>製造加工</span></div>
+            <div class="guide-row"><span style="color:#f59e0b">■</span><span>包裝運輸</span></div>
+            <div class="guide-row"><span style="color:#a78bfa">■</span><span>使用維護</span></div>
+            <div class="guide-row"><span style="color:#ef4444">■</span><span>回收處理</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="end-screen" id="endScreen">
+    <h2>🏆 達標！遊戲結束！</h2>
+    <div class="end-box" id="endBox"></div>
+    <br><button class="reset-btn" onclick="resetGame()">重新開始</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════
+// 門檻設定
+// ══════════════════
+const TARGET_MONEY   = 60;
+const TARGET_FUNC    = 15;
+const MAX_BURDEN     = 10;  // 達標上限
+const JAIL_BURDEN    = 20;  // 進稽查署門檻
+
+// ══════════════════
+// 版圖 32 格
+// ══════════════════
+const CELLS = [
+  // 底邊右→左 index 0-9（回收區：高低交錯）
+  {type:'corner',      name:'起點',     icon:'🏁', cls:'corner'},
+  {type:'lc',          name:'電子垃圾', icon:'☠️', cls:'lc5', tag:'♻️回收', money:4, func:0, burden:3, note:'快速丟棄，大量污染'},
+  {type:'lc',          name:'碳中和站', icon:'🌳', cls:'lc5', tag:'♻️回收', money:0, func:3, burden:-3,note:'主動降低碳排'},
+  {type:'chance-cell', name:'機會',     icon:'🎴', cls:'chance-cell'},
+  {type:'lc',          name:'焚化處理', icon:'🔥', cls:'lc5', tag:'♻️回收', money:3, func:0, burden:2, note:'省事但碳排高'},
+  {type:'lc',          name:'以舊換新', icon:'🔄', cls:'lc5', tag:'♻️回收', money:2, func:3, burden:1, note:'延長使用壽命'},
+  {type:'lc',          name:'電子垃圾', icon:'🏅', cls:'lc5', tag:'♻️回收', money:2, func:2, burden:-2,note:'獲得永續認證'},
+  {type:'lc',          name:'材料再製', icon:'♻️', cls:'lc5', tag:'♻️回收', money:1, func:4, burden:-3, note:'最環保的回收方式'},
+  {type:'fate-cell',   name:'命運',     icon:'⚡', cls:'fate-cell'},
+  {type:'corner',      name:'免費停靠', icon:'🏖️', cls:'corner'},
+  // 左邊下→上 index 10-15（製造區：高低交錯）
+  {type:'lc', name:'富士康代工', icon:'🏭', cls:'lc2', tag:'⚙️製造', money:6, func:0, burden:3, note:'量大利潤高，污染也高'},
+  {type:'lc', name:'手工精製',   icon:'🤲', cls:'lc2', tag:'⚙️製造', money:1, func:5, burden:-1, note:'品質最高，產量最少'},
+  {type:'lc', name:'海外代工',   icon:'🌏', cls:'lc2', tag:'⚙️製造', money:5, func:0, burden:2, note:'成本最低，監管最少'},
+  {type:'lc', name:'在地組裝',   icon:'🔧', cls:'lc2', tag:'⚙️製造', money:2, func:3, burden:0, note:'支持在地就業'},
+  {type:'chance-cell', name:'機會', icon:'🎴', cls:'chance-cell'},
+  {type:'lc', name:'自動產線',   icon:'🤖', cls:'lc2', tag:'⚙️製造', money:4, func:1, burden:2, note:'高效率但耗能'},
+  // 頂邊左→右 index 16-25（原料+包裝：高低交錯）
+  {type:'corner',      name:'前往稽查', icon:'🚨', cls:'corner'},
+  {type:'lc', name:'剛果鈷礦',   icon:'⛏️', cls:'lc1', tag:'🌿原料', money:6, func:0, burden:3, note:'成本最低但爭議最大'},
+  {type:'lc', name:'生物基塑料', icon:'🌱', cls:'lc1', tag:'🌿原料', money:1, func:3, burden:-2, note:'環保材料，利潤較低'},
+  {type:'fate-cell',   name:'命運', icon:'⚡', cls:'fate-cell'},
+  {type:'lc', name:'稀土開採',   icon:'🪨', cls:'lc1', tag:'🌿原料', money:4, func:2, burden:2, note:'高性能但開採傷地球'},
+  {type:'lc', name:'鋁合金',     icon:'🔩', cls:'lc1', tag:'🌿原料', money:3, func:2, burden:2, note:'耐用材料，中等負擔'},
+  {type:'lc', name:'空運急送',   icon:'✈️', cls:'lc3', tag:'📦包裝', money:5, func:0, burden:3, note:'最快但碳排最高'},
+  {type:'lc', name:'裸裝出貨',   icon:'📫', cls:'lc3', tag:'📦包裝', money:1, func:2, burden:-2, note:'減少包裝最環保'},
+  {type:'chance-cell', name:'機會', icon:'🎴', cls:'chance-cell'},
+  {type:'corner',      name:'稽查署',   icon:'🔒', cls:'corner'},
+  // 右邊上→下 index 26-31（包裝+維護：高低交錯）
+  {type:'lc', name:'過度包裝',   icon:'📦', cls:'lc3', tag:'📦包裝', money:4, func:0, burden:2, note:'賣相好但浪費資源'},
+  {type:'lc', name:'海運節能',   icon:'🚢', cls:'lc3', tag:'📦包裝', money:2, func:1, burden:1, note:'慢但碳排低'},
+  {type:'lc', name:'一次性品',   icon:'🗑️', cls:'lc4', tag:'🔧維護', money:5, func:0, burden:3, note:'快速換代，廢棄最多'},
+  {type:'lc', name:'可換電池',   icon:'🔋', cls:'lc4', tag:'🔧維護', money:2, func:4, burden:-2, note:'設計可維修，減少廢棄'},
+  {type:'fate-cell',   name:'命運', icon:'⚡', cls:'fate-cell'},
+  {type:'lc', name:'官方維修',   icon:'🛠️', cls:'lc4', tag:'🔧維護', money:3, func:2, burden:1, note:'維修服務延長壽命'},
+  {type:'lc', name:'模組升級',   icon:'🧩', cls:'lc4', tag:'🔧維護', money:1, func:5, burden:-3, note:'最佳永續設計'},
+];
+
+// 版圖座標 (10×8)
+const CELL_POS = [
+  [7,9],[7,8],[7,7],[7,6],[7,5],[7,4],[7,3],[7,2],[7,1],[7,0],
+  [6,0],[5,0],[4,0],[3,0],[2,0],[1,0],
+  [0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],
+  [1,9],[2,9],[3,9],[4,9],[5,9],[6,9],
+];
+
+// 機會卡（走到機會格時從三張隨機選一張打出）
+const CHANCE_POOL = [
+  {name:'廣告打壓',  icon:'📣', cost:'$10',   costType:'money',  costAmt:10,
+   target:'opponent', desc:'花 $10，對手 💰-$8',
+   apply(cur,tgt){ cur.money-=10; tgt.money=Math.max(0,tgt.money-8); return `${cur.name} 花$10 → ${tgt.name} -$8`; }},
+  {name:'專利封鎖',  icon:'🔒', cost:'$8',    costType:'money',  costAmt:8,
+   target:'opponent', desc:'花 $8，對手 ⚙️-3',
+   apply(cur,tgt){ cur.money-=8; tgt.func=Math.max(0,tgt.func-3); return `${cur.name} 花$8 → ${tgt.name} 功能-3`; }},
+  {name:'環保舉報',  icon:'📢', cost:'⚙️3分', costType:'func',   costAmt:3,
+   target:'opponent', desc:'花 ⚙️3分，對手 🌍+2',
+   apply(cur,tgt){ cur.func=Math.max(0,cur.func-3); tgt.burden+=2; return `${cur.name} 花功能3 → ${tgt.name} 負擔+2`; }},
+  {name:'碳匯交易',  icon:'🌿', cost:'$12',   costType:'money',  costAmt:12,
+   target:'self',     desc:'花 $12，自己 🌍-3',
+   apply(cur,tgt){ cur.money-=12; cur.burden=Math.max(0,cur.burden-3); return `${cur.name} 花$12 → 負擔-3`; }},
+  {name:'技術授權',  icon:'💡', cost:'⚙️5分', costType:'func',   costAmt:5,
+   target:'self',     desc:'花 ⚙️5分，自己 💰+$15',
+   apply(cur,tgt){ cur.func=Math.max(0,cur.func-5); cur.money+=15; return `${cur.name} 花功能5 → +$15`; }},
+  {name:'政府補貼',  icon:'💶', cost:'⚙️2分', costType:'func',   costAmt:2,
+   target:'self',     desc:'花 ⚙️2分，自己 💰+$8',
+   apply(cur,tgt){ cur.func=Math.max(0,cur.func-2); cur.money+=8; return `${cur.name} 花功能2 → +$8`; }},
+];
+
+// 命運卡
+const FATE = [
+  {type:'bad', name:'碳稅開徵', icon:'💸',
+   desc:'每人地球負擔的一半換算為罰款。',
+   apply(){ let r=[]; PLAYERS.forEach(p=>{ if(!p.bankrupt){ const f=Math.floor(p.burden/2); if(f>0){ p.money=Math.max(0,p.money-f); r.push(p.name+'-$'+f); } } }); return r.join('、')||'無人受罰'; }},
+  {type:'bad', name:'血汗工廠爆料', icon:'📢',
+   desc:'地球負擔最高的玩家進稽查署。',
+   apply(){ let w=null; PLAYERS.forEach(p=>{ if(!p.bankrupt&&(!w||p.burden>w.burden)) w=p; }); if(w){ sendToJail(w); return w.name+' 進稽查署'; } return ''; }},
+  {type:'bad', name:'電子垃圾危機', icon:'☢️',
+   desc:'全員地球負擔 +2。',
+   apply(){ PLAYERS.forEach(p=>{ if(!p.bankrupt) p.burden+=2; }); return '全員負擔 +2'; }},
+  {type:'bad', name:'消費者抵制',   icon:'🚷',
+   desc:'利潤最多的玩家損失 $8。',
+   apply(){ let w=null; PLAYERS.forEach(p=>{ if(!p.bankrupt&&(!w||p.money>w.money)) w=p; }); if(w){ w.money=Math.max(0,w.money-8); return w.name+' -$8'; } return ''; }},
+];
+
+// ══════════════════
+// 玩家
+// ══════════════════
+function makePlayers(){
+  return [
+    {id:'A', name:'玩家 A', color:'#6366f1', money:10, func:0, burden:0, pos:0, jailTurns:0, bankrupt:false, laps:0},
+    {id:'B', name:'玩家 B', color:'#10b981', money:10, func:0, burden:0, pos:0, jailTurns:0, bankrupt:false, laps:0},
+  ];
+}
+let PLAYERS = makePlayers();
+
+// ══════════════════
+// 狀態
+// ══════════════════
+let G = {
+  turnIdx:0, round:1,
+  rolledDice:0, currentSteps:0,
+  pendingCard:null,
+  pendingChanceCards:null,
+  pendingChanceOpponent:null,
+  logs:[]
+};
+function curPlayer(){ return PLAYERS[G.turnIdx % PLAYERS.length]; }
+
+function addLog(msg, cls=''){
+  G.logs.push({msg,cls});
+  const lb=document.getElementById('logBox');
+  lb.innerHTML=G.logs.slice(-40).map(l=>`<div class="log-entry ${l.cls}">${l.msg}</div>`).join('');
+  lb.scrollTop=lb.scrollHeight;
+}
+
+// ══════════════════
+// 稽查署
+// ══════════════════
+function sendToJail(p){
+  p.pos=25; p.jailTurns=2;
+  addLog(`${p.name} 🔒 進稽查署，停 2 回合`,'bad');
+}
+
+// ══════════════════
+// 勝利判斷
+// ══════════════════
+function checkWin(p){
+  return p.money>=TARGET_MONEY && p.func>=TARGET_FUNC && p.burden<=MAX_BURDEN;
+}
+
+// ══════════════════
+// 擲骰
+// ══════════════════
+function rollDice(){
+  const p=curPlayer();
+  if(p.jailTurns>0){
+    p.jailTurns--;
+    const jn=document.getElementById('jailNotice');
+    jn.style.display='block';
+    jn.textContent=`🔒 在稽查署中，剩 ${p.jailTurns} 回合。`;
+    addLog(`${p.name} 🔒 稽查署，剩 ${p.jailTurns} 回合`,'bad');
+    if(p.jailTurns===0){ addLog(`${p.name} 獲釋！`,'info'); }
+    endTurn(); return;
+  }
+  document.getElementById('jailNotice').style.display='none';
+  const dice=Math.floor(Math.random()*4)+1;
+  G.rolledDice=dice; G.currentSteps=dice;
+  document.getElementById('diceVal').textContent='🎲 '+dice;
+  document.getElementById('diceBtn').disabled=true;
+  document.getElementById('adjustRow').style.display='flex';
+  updateAdjustUI();
+  addLog(`${p.name} 擲出 ${dice} 點`);
+  showPreview();
+}
+
+function updateAdjustUI(){
+  const p=curPlayer();
+  const diff=G.currentSteps-G.rolledDice;
+  const cost=Math.abs(diff)*5;
+  document.getElementById('stepNum').textContent=G.currentSteps;
+  document.getElementById('btnMinus').disabled=(diff<=-2||G.currentSteps<=1);
+  document.getElementById('btnPlus').disabled=(diff>=2||G.currentSteps>=6);
+  document.getElementById('costNote').textContent=
+    cost>0 ? `確認後扣 $${cost}（目前 $${p.money}）` : '免費預覽，確認才扣錢';
+  document.getElementById('confirmBtn').disabled=(cost>0&&p.money<cost);
+}
+
+function adjustStep(dir){
+  const newSteps=G.currentSteps+dir;
+  const newDiff=newSteps-G.rolledDice;
+  if(newSteps<1||newSteps>6||newDiff<-2||newDiff>2) return;
+  G.currentSteps=newSteps;
+  updateAdjustUI();
+  showPreview();
+}
+
+function showPreview(){
+  const p=curPlayer();
+  const targetIdx=(p.pos+G.currentSteps)%CELLS.length;
+  const cell=CELLS[targetIdx];
+  const pb=document.getElementById('previewBox');
+  if(cell.type==='lc'){
+    const afterMoney=p.money+cell.money;
+    const afterFunc=p.func+cell.func;
+    const afterBurden=p.burden+cell.burden;
+    const moneyOk=afterMoney>=TARGET_MONEY;
+    const funcOk=afterFunc>=TARGET_FUNC;
+    const burdenOk=afterBurden<=MAX_BURDEN;
+    pb.style.display='block';
+    pb.innerHTML=`
+      <b>走到：${cell.icon} ${cell.name}</b>（${cell.tag||''}）<br>
+      <span style="font-size:10px;color:var(--muted)">${cell.note||''}</span><br>
+      💰 ${cell.money>0?'+':''}${cell.money} → <b style="color:${moneyOk?'#34d399':'#38bdf8'}">${afterMoney}</b>${moneyOk?' ✅':''}　
+      ⚙️ +${cell.func} → <b style="color:${funcOk?'#34d399':'#a78bfa'}">${afterFunc}</b>${funcOk?' ✅':''}　
+      🌍 ${cell.burden>0?'+':''}${cell.burden} → <b style="color:${afterBurden>MAX_BURDEN?'#ef4444':burdenOk?'#34d399':'#f59e0b'}">${afterBurden}</b>${burdenOk?' ✅':''}`;
+  } else {
+    pb.style.display='block';
+    pb.innerHTML=`<b>走到：${cell.icon} ${cell.name}</b>`;
+  }
+}
+
+function confirmMove(){
+  const p=curPlayer();
+  const diff=Math.abs(G.currentSteps-G.rolledDice);
+  const cost=diff*5;
+  if(cost>0){
+    if(p.money<cost){ addLog('資金不足！','bad'); return; }
+    p.money-=cost;
+    addLog(`${p.name} 花 $${cost} 調整步數 → ${G.currentSteps} 步`);
+  }
+  document.getElementById('adjustRow').style.display='none';
+  document.getElementById('previewBox').style.display='none';
+  movePlayer(p, G.currentSteps);
+}
+
+// ══════════════════
+// 移動
+// ══════════════════
+function movePlayer(p, steps){
+  const oldPos=p.pos;
+  const newPos=(p.pos+steps)%CELLS.length;
+  if(newPos<=oldPos && steps>0){
+    p.money+=10; p.laps++;
+    addLog(`${p.name} 🏁 經過起點 +$10（第 ${p.laps} 圈）`,'earn');
+  }
+  p.pos=newPos;
+  const cell=CELLS[newPos];
+  document.getElementById('sb-cell').textContent=cell.name;
+  addLog(`${p.name} → 「${cell.name}」`);
+  render();
+  setTimeout(()=>landCell(p,cell),200);
+}
+
+function landCell(p,cell){
+  if(cell.type==='corner'){
+    if(cell.name==='前往稽查'){ sendToJail(p); render(); endTurn(); return; }
+    endTurn(); return;
+  }
+  if(cell.type==='chance-cell'){
+    showChanceSelection(); return;
+  }
+  if(cell.type==='fate-cell'){
+    const card=FATE[Math.floor(Math.random()*FATE.length)];
+    showCard(card,'bad'); return;
+  }
+  // 一般格
+  p.money=Math.max(0,p.money+cell.money);
+  p.func=Math.max(0,p.func+cell.func);
+  p.burden=Math.max(0,p.burden+cell.burden);
+  addLog(`效果：💰${cell.money>0?'+':''}${cell.money} ⚙️+${cell.func} 🌍${cell.burden>0?'+':''}${cell.burden}`,'earn');
+  // 超過稽查門檻
+  if(p.burden>JAIL_BURDEN){ sendToJail(p); }
+  render();
+  // 勝利判斷
+  if(checkWin(p)){ endGame(p); return; }
+  endTurn();
+}
+
+// ══════════════════
+// 機會格
+// ══════════════════
+function showChanceSelection(){
+  const p=curPlayer();
+  const opponent=PLAYERS.find(x=>x.id!==p.id&&!x.bankrupt);
+  const pool=[...CHANCE_POOL].sort(()=>Math.random()-.5).slice(0,3);
+  G.pendingChanceCards=pool;
+  G.pendingChanceOpponent=opponent;
+  const cz=document.getElementById('cardZone');
+  cz.className='card-zone good';
+  cz.style.display='block';
+  const cardsHTML=pool.map((card,i)=>{
+    const canAfford=card.costType==='money'?p.money>=card.costAmt:p.func>=card.costAmt;
+    const needsOpponent=card.target==='opponent';
+    const disabled=!canAfford||(needsOpponent&&!opponent);
+    return `<button ${disabled?'':'onclick="playChanceCard('+i+')"'}
+      style="width:100%;background:var(--surface2);border:1.5px solid ${disabled?'var(--border)':'#6366f1'};
+      border-radius:8px;padding:9px 10px;cursor:${disabled?'not-allowed':'pointer'};
+      text-align:left;font-family:inherit;opacity:${disabled?0.4:1};
+      color:var(--text);font-size:12px;margin-bottom:6px;display:block;">
+      <b>${card.icon} ${card.name}</b>
+      <span style="color:var(--gold);font-size:11px;margin-left:6px">${card.cost}</span>
+      <br><span style="color:#94a3b8;font-size:11px">${card.desc}</span>
+      ${!canAfford?'<br><span style="color:#ef4444;font-size:10px">⚠️ 資源不足</span>':''}
+    </button>`;
+  }).join('');
+  cz.innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:#34d399;margin-bottom:10px">🎴 機會！選一張行動卡：</div>
+    ${cardsHTML}
+    <button class="card-ok" onclick="skipChance()" style="margin-top:2px">跳過不使用</button>`;
+}
+function skipChance(){
+  document.getElementById('cardZone').style.display='none';
+  G.pendingChanceCards=null;
+  addLog(`${curPlayer().name} 跳過機會卡`);
+  endTurn();
+}
+function playChanceCard(idx){
+  const p=curPlayer();
+  const card=G.pendingChanceCards[idx];
+  const tgt=card.target==='opponent'?G.pendingChanceOpponent:p;
+  const detail=card.apply(p,tgt);
+  addLog(`🎴「${card.name}」：${detail}`,'earn');
+  document.getElementById('cardZone').style.display='none';
+  G.pendingChanceCards=null;
+  render();
+  PLAYERS.forEach(x=>{ if(checkWin(x)) endGame(x); });
+  endTurn();
+}
+
+// ══════════════════
+// 卡牌
+// ══════════════════
+function showCard(card, type){
+  G.pendingCard={card,type};
+  const cz=document.getElementById('cardZone');
+  cz.className='card-zone '+type;
+  cz.style.display='block';
+  document.getElementById('cardTitle').textContent=(type==='good'?'🎴 機會：':'⚡ 命運：')+card.name;
+  document.getElementById('cardDesc').textContent=card.desc;
+}
+function confirmCard(){
+  const {card,type}=G.pendingCard;
+  const detail=card.apply();
+  addLog(`${type==='good'?'🎴':'⚡'} 「${card.name}」${detail}`,type==='good'?'earn':'bad');
+  document.getElementById('cardZone').style.display='none';
+  G.pendingCard=null;
+  render();
+  PLAYERS.forEach(p=>{ if(checkWin(p)){ endGame(p); } });
+  endTurn();
+}
+
+// ══════════════════
+// 結束回合
+// ══════════════════
+function endTurn(){
+  render();
+  let next=G.turnIdx;
+  do{ next=(next+1)%PLAYERS.length; } while(PLAYERS[next].bankrupt && next!==G.turnIdx);
+  if(next<=G.turnIdx) G.round++;
+  G.turnIdx=next;
+  document.getElementById('diceBtn').disabled=false;
+  document.getElementById('diceVal').textContent='';
+  document.getElementById('adjustRow').style.display='none';
+  document.getElementById('previewBox').style.display='none';
+  document.getElementById('cardZone').style.display='none';
+  document.getElementById('apTitle').textContent=`${curPlayer().name} 的回合`;
+  document.getElementById('sb-turn').textContent=`${curPlayer().name} 的回合`;
+  document.getElementById('sb-round').textContent=`第 ${G.round} 圈`;
+  addLog(`── ${curPlayer().name} 的回合 ──`,'info');
+  render();
+}
+
+// ══════════════════
+// 結算
+// ══════════════════
+function endGame(winner){
+  document.getElementById('mainLayout').style.display='none';
+  document.getElementById('endScreen').style.display='block';
+  addLog(`🏆 ${winner.name} 達成三項目標，獲勝！`,'win');
+  const rows=PLAYERS.map(p=>{
+    const moneyOk=p.money>=TARGET_MONEY;
+    const funcOk=p.func>=TARGET_FUNC;
+    const burdenOk=p.burden<=MAX_BURDEN;
+    return `<div class="end-row">
+      <span style="font-weight:700;font-size:15px">${p.id===winner.id?'🏆 ':''} ${p.name}</span>
+      <span>💰$${p.money}${moneyOk?' ✅':' ❌'}</span>
+      <span>⚙️${p.func}${funcOk?' ✅':' ❌'}</span>
+      <span>🌍${p.burden}${burdenOk?' ✅':' ❌'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('endBox').innerHTML=
+    `<div style="font-size:12px;color:var(--muted);margin-bottom:12px">目標：💰$60 ｜ ⚙️15分 ｜ 🌍≤10</div>${rows}`;
+}
+
+function resetGame(){
+  PLAYERS=makePlayers();
+  G={turnIdx:0,round:1,rolledDice:0,currentSteps:0,pendingCard:null,pendingChanceCards:null,pendingChanceOpponent:null,logs:[]};
+  document.getElementById('mainLayout').style.display='grid';
+  document.getElementById('endScreen').style.display='none';
+  document.getElementById('diceBtn').disabled=false;
+  document.getElementById('diceVal').textContent='';
+  document.getElementById('adjustRow').style.display='none';
+  document.getElementById('previewBox').style.display='none';
+  document.getElementById('cardZone').style.display='none';
+  document.getElementById('jailNotice').style.display='none';
+  document.getElementById('sb-round').textContent='第 1 圈';
+  document.getElementById('sb-turn').textContent='玩家 A 的回合';
+  document.getElementById('apTitle').textContent='玩家 A 的回合';
+  addLog('遊戲開始！先達成三個目標的玩家獲勝。');
+  render();
+}
+
+// ══════════════════
+// 渲染版圖
+// ══════════════════
+function renderBoard(){
+  const board=document.getElementById('board');
+  const grid=Array.from({length:8},()=>Array(10).fill(null));
+  CELL_POS.forEach(([r,c],i)=>{ if(i<CELLS.length) grid[r][c]=i; });
+  board.innerHTML='';
+  for(let r=0;r<8;r++){
+    for(let c=0;c<10;c++){
+      const div=document.createElement('div');
+      if(grid[r][c]===null){
+        div.style.cssText='background:#0a0c13;border:1px solid #12151e;border-radius:6px;';
+        board.appendChild(div); continue;
+      }
+      const idx=grid[r][c];
+      const cell=CELLS[idx];
+      div.className=`cell ${cell.cls}`;
+      const tokens=PLAYERS.filter(p=>p.pos===idx&&!p.bankrupt);
+      if(tokens.length>0) div.classList.add('active');
+      const tokenHTML=tokens.map((p,ti)=>
+        `<div class="token" style="background:${p.color};left:${4+ti*24}px">${p.id}</div>`).join('');
+      div.innerHTML=`
+        <span class="cell-icon">${cell.icon}</span>
+        <span class="cell-name">${cell.name}</span>
+        ${cell.tag?`<span class="cell-tag">${cell.tag}</span>`:''}
+        ${cell.type==='lc'?`<span class="cell-values">💰${cell.money>0?'+':''}${cell.money} ⚙️+${cell.func} 🌍${cell.burden>0?'+':''}${cell.burden}</span>`:''}
+        ${tokenHTML}`;
+      board.appendChild(div);
+    }
+  }
+}
+
+// ══════════════════
+// 渲染玩家
+// ══════════════════
+function renderPlayers(){
+  const cur=curPlayer();
+  PLAYERS.forEach(p=>{
+    const card=document.getElementById('pcard_'+p.id);
+    const isActive=p.id===cur.id;
+    card.className='pcard'+(isActive?' active':'')+(p.jailTurns>0?' jailed':'');
+    document.getElementById('ptag_'+p.id).textContent=
+      p.jailTurns>0?`🔒 稽查署 ${p.jailTurns}回`:isActive?'● 出牌':'';
+
+    const moneyPct=Math.min(100,p.money/TARGET_MONEY*100);
+    const funcPct=Math.min(100,p.func/TARGET_FUNC*100);
+    const burdenPct=Math.min(100,p.burden/JAIL_BURDEN*100);
+    const moneyDone=p.money>=TARGET_MONEY;
+    const funcDone=p.func>=TARGET_FUNC;
+    const burdenDone=p.burden<=MAX_BURDEN;
+
+    document.getElementById('goals_'+p.id).innerHTML=`
+      <div class="goal-row">
+        <div class="goal-header">
+          <span class="goal-label">💰 利潤</span>
+          <span class="goal-val" style="color:#38bdf8">$${p.money}</span>
+          <span class="goal-target">目標 $${TARGET_MONEY}${moneyDone?'<span class="goal-done">✅ 達標</span>':''}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${moneyPct}%;background:#38bdf8"></div></div>
+      </div>
+      <div class="goal-row">
+        <div class="goal-header">
+          <span class="goal-label">⚙️ 功能</span>
+          <span class="goal-val" style="color:#a78bfa">${p.func}</span>
+          <span class="goal-target">目標 ${TARGET_FUNC}分${funcDone?'<span class="goal-done">✅ 達標</span>':''}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${funcPct}%;background:#a78bfa"></div></div>
+      </div>
+      <div class="goal-row">
+        <div class="goal-header">
+          <span class="goal-label">🌍 地球負擔</span>
+          <span class="goal-val" style="color:${p.burden>MAX_BURDEN?'#ef4444':'#34d399'}">${p.burden}</span>
+          <span class="goal-target">需 ≤${MAX_BURDEN}${burdenDone?'<span class="goal-done">✅ 達標</span>':'<span style="font-size:10px;color:#ef4444"> ❌</span>'}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${burdenPct}%;background:${p.burden>MAX_BURDEN?'#ef4444':'#34d399'}"></div></div>
+      </div>`;
+  });
+}
+
+// ══════════════════
+// 排名（達標進度）
+// ══════════════════
+function renderRanking(){
+  document.getElementById('rankList').innerHTML=PLAYERS.map(p=>{
+    const done=[p.money>=TARGET_MONEY, p.func>=TARGET_FUNC, p.burden<=MAX_BURDEN];
+    const count=done.filter(Boolean).length;
+    return `<div class="rank-row ${count===3?'lead':''}">
+      <span style="font-size:16px">${count===3?'🏆':count===2?'🥈':count===1?'🥉':'  '}</span>
+      <span style="font-weight:700;flex:1">${p.name}</span>
+      <span style="font-size:11px">${done[0]?'💰✅':'💰❌'} ${done[1]?'⚙️✅':'⚙️❌'} ${done[2]?'🌍✅':'🌍❌'}</span>
+      <span style="font-size:11px;color:var(--muted);margin-left:4px">${count}/3</span>
+    </div>`;
+  }).join('');
+}
+
+function render(){
+  renderBoard();
+  renderPlayers();
+  renderRanking();
+}
+
+// 啟動
+addLog('遊戲開始！先同時達成三個目標的玩家獲勝。');
+addLog('💰 利潤$60 ｜ ⚙️ 功能15分 ｜ 🌍 地球負擔≤10');
+render();
+</script>
+</body>
+</html>
